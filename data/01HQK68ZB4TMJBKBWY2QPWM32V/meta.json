@@ -1,0 +1,17 @@
+{
+	"ulid": "01HQK68ZB4TMJBKBWY2QPWM32V",
+	"minTime": 1708956011921,
+	"maxTime": 1708963200000,
+	"stats": {
+		"numSamples": 21344,
+		"numSeries": 667,
+		"numChunks": 667
+	},
+	"compaction": {
+		"level": 1,
+		"sources": [
+			"01HQK68ZB4TMJBKBWY2QPWM32V"
+		]
+	},
+	"version": 1
+}

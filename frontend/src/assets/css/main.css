@@ -1,0 +1,22 @@
+/* Default theme (light mode) */
+:root {
+  --background-color: #fff;
+  --text-color: #000;
+  --bubble-background: #f1f1f1;
+}
+
+/* Dark theme */
+[data-theme="dark"] {
+  --background-color: #333;
+  --text-color: #fff;
+  --bubble-background: #555;
+}
+
+
+.response-bubble {
+  margin-top: 10px;
+  padding: 10px;
+  background-color: lightblue;
+  border-radius: 10px;
+}
+

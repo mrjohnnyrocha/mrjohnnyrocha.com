@@ -1,0 +1,2 @@
+*.tar.gz filter=lfs
+data filter=lfs 
