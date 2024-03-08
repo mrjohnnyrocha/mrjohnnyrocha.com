@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router';
-import StartConversation from '@/components/StartConversation';
-import ChatDisplay from '@/components/ChatDisplay';
 
+const ChatDisplay = () => import('@/components/ChatDisplay')
+const StartConversation = () => import('@/components/StartConversation')
 const routes = [
     {
         path: '/',
