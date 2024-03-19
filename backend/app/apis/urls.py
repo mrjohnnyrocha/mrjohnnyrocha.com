@@ -1,5 +1,7 @@
 from django.urls import path
 from . import welcome_page, conversation, user, privacy_policy, message
+from django.urls import path
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 app_name = "api"
 
@@ -16,5 +18,12 @@ urlpatterns = [
     path("auth/signin/", user.UserLoginAPI.as_view(), name="signin"),
     path("auth/signout/", user.UserLogoutAPI.as_view(), name="signout"),
     path("auth/signup/", user.UserSignupAPI.as_view(), name="signup"),
+    path(
+        "api/session/validate",
+        user.SessionValidateAPI.as_view(),
+        name="session_validate",
+    ),
+    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path("user/profile/", user.UserProfileAPI.as_view(), name="UserProfileAPI"),
 ]

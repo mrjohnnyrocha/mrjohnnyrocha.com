@@ -16,13 +16,6 @@ class ConversationAPI(BaseAPI):
     def __init__(self):
         super().__init__()
 
-class ConversationAPI(BaseAPI):
-    authentication_classes = [SessionAuthentication, TokenAuthentication]
-    permission_classes = [IsAuthenticated]
-    
-    def __init__(self):
-        super().__init__()
-
     def get(self, request):
         if not request.user.is_authenticated:
             return Response({'error': 'User must be authenticated.'}, status=status.HTTP_403_FORBIDDEN)

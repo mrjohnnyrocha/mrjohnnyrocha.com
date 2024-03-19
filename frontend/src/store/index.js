@@ -1,122 +1,164 @@
-The warning export 'default' (imported as 'Vue') was not found in 'vue' is caused by the following line in your code:
+import { createStore } from "vuex";
+import axios from "axios";
 
-js
+import {
+  signInAPI,
+  signUpAPI,
+  signOutAPI,
+  createConversationAPI,
+} from "@/services/api";
+import createAuthRefreshInterceptor from "axios-auth-refresh";
 
+axios.defaults.baseURL = "https://127.0.0.1:8000/api";
+axios.defaults.headers.post["Content-Type"] = "application/json";
 
-Copy code
-import Vue from 'vue';
-This line is trying to import the default export from the vue package, but as the warning suggests, there is no default export in the vue package. Instead, vue exports several named exports.
+const refreshAuthLogic = failedRequest =>
+  axios
+    .post("/token/refresh", { refresh: localStorage.getItem("refreshToken") })
+    .then(tokenRefreshResponse => {
+      localStorage.getItem("token", tokenRefreshResponse.data.access);
+      localStorage.getItem("refreshToken", tokenRefreshResponse.data.refresh);
 
-To fix this warning, you should remove this line:
+      failedRequest.response.config.headers["Authorization"] =
+        "Bearer " + tokenRefreshResponse.data.access;
+      return Promise.resolve();
+    });
+createAuthRefreshInterceptor(axios, refreshAuthLogic);
 
-js
+axios.interceptors.request.use(
+  async config => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      config.headers = {
+        Authorization: "Bearer " + token,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      };
+    }
+    return config;
+  },
+  error => {
+    Promise.reject(error);
+  }
+);
 
+//   _______________  ____  ______
+//  / ___/_  __/ __ \/ __ \/ ____/
+//  \__ \ / / / / / / /_/ / __/
+// ___/ // / / /_/ / _, _/ /___
+// /____//_/  \____/_/ |_/_____/
 
-Copy code
-import Vue from 'vue';
-And replace the next line:
-
-js
-
-
-Copy code
-Vue.use(Vuex);
-with:
-
-js
-
-
-Copy code
-import { createApp } from 'vue';
-const app = createApp({});
-app.use(Vuex);
-
-import { createApp } from 'vue';
-import Vuex from 'vuex';
-import VuexPersist from 'vuex-persist';
-import { signInAPI, signOutAPI, signUpAPI } from '../services/api';
-
-const app = createApp({});
-app.use(Vuex);
-
-const vuexPersist = new VuexPersist({
-  key: 'my-app',
-  storage: window.localStorage,
-  reducer: state => ({
-    isAuthenticated: state.isAuthenticated,
-    user: state.user,
-  }),
-});
-export default new Vuex.Store({
+const store = createStore({
   state: {
     isAuthenticated: false,
     user: null,
-    userUUID: null,
-    conversationId: null,
-    messages: [],
-    error: null,
   },
+
+  getters: {
+    isAuthenticated: state => {
+      return state.isAuthenticated;
+    },
+    user: state => {
+      return state.user;
+    },
+  },
+
   mutations: {
     setAuthenticated(state, isAuthenticated) {
       state.isAuthenticated = isAuthenticated;
     },
-    setUser(state, user) {
-      state.user = user;
-    },
-    setUserUUID(state, uuid) {
-      state.userUUID = uuid;
-    },
-    setConversationId(state, uuid) {
-      state.conversationId = uuid;
-    },
-    setMessages(state, messages) {
-      state.messages = messages;
-    },
-    addMessage(state, message) {
-      state.messages.push(message);
-    },
-    setError(state, error) {
-      state.error = error;
-    },
-    clearError(state) {
-      state.error = null;
+    setUser(state, userData) {
+      state.user = userData;
     },
   },
+
   actions: {
-    async signIn({ commit }, credentials) {
-      commit('clearError');
-      try {
-        const token = await signInAPI(credentials);
-        localStorage.setItem('token', token); // Store the token
-        commit('setAuthenticated', true);
-        // Optionally fetch user details here and update state
-      } catch (error) {
-        commit('setError', error.message || "An error occurred during sign-in.");
+    async validateSession({ commit }) {
+      const token = sessionStorage.getItem("token");
+      if (!token) {
+        commit("setAuthenticated", false);
+        commit("setUser", null);
+        sessionStorage.removeItem("token");
+        sessionStorage.removeItem("user");
+      } else {
+        axios
+          .get("/api/session/validate", {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          })
+          .then(response => {
+            commit("setAuthenticated", true);
+            commit("setUser", response.data.user);
+            sessionStorage.setItem("token", response.data.token);
+          })
+          .catch(error => {
+            console.error("Session validation failed:", error);
+            commit("setAuthenticated", false);
+            commit("setUser", null);
+            sessionStorage.removeItem("token");
+            sessionStorage.removeItem("user");
+          });
       }
     },
-    async signOut({ commit }) {
+
+    async signIn({ commit }, { email, password }) {
       try {
-        await signOutAPI(); // Inform the backend about the sign out
-        localStorage.removeItem('token'); // Remove the token
-        commit('setAuthenticated', false);
-        commit('setUser', null);
-        commit('clearError');
+        const response = await signInAPI(email, password);
+        commit("setAuthenticated", true);
+        commit("setUser", response.data);
+        sessionStorage.setItem("token", response.data.access);
+        sessionStorage.setItem("refreshToken", response.data.refresh);
+        sessionStorage.setItem("user", JSON.stringify(response.data));
       } catch (error) {
-        commit('setError', error.message || "An error occurred during sign-out.");
+        console.error("Error occurred during sign-in:", error);
       }
     },
-    async signUp({ commit }, userData) {
-      commit('clearError');
+
+    async signOut({ commit, $router }) {
       try {
-        const token = await signUpAPI(userData);
-        localStorage.setItem('token', token); // Assuming immediate login
-        commit('setAuthenticated', true);
-        // Optionally fetch user details here and update state
+        await signOutAPI();
+        commit("setAuthenticated", false);
+        commit("setUser", null);
+        sessionStorage.removeItem("token");
+        sessionStorage.removeItem("refreshToken");
+        sessionStorage.removeItem("user");
+        $router.push("/signin");
       } catch (error) {
-        commit('setError', error.message || "An error occurred during sign-up.");
+        console.error("Error occurred during sign-out:", error);
+        throw error;
       }
     },
-    // Remaining actions...
+
+    async signUp({ commit, $router }, { email, password }) {
+      try {
+        const response = await signUpAPI(email, password);
+        commit("setAuthenticated", true);
+        commit("setUser", response.data.user);
+        sessionStorage.setItem("token", response.data.token);
+        sessionStorage.setItem("user", response.data.user);
+        $router.push("/");
+        return "Sign-up successful!";
+      } catch (error) {
+        console.log(error);
+        console.error("Error occurred during sign-up:", error);
+
+        throw error;
+      }
+    },
+
+    async createConversation({ commit }, { name }) {
+      try {
+        const response = await createConversationAPI(name);
+        console.log(response, "Hoijoi");
+        commit("currentConversation", response.data);
+        return;
+      } catch (error) {
+        console.error("An error ocurred creating the conversation", error);
+        throw error;
+      }
+    },
   },
-  plugins: [vuexPersist.plugin],
 });
+
+export default store;

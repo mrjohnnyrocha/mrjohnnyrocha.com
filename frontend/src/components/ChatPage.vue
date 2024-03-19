@@ -1,22 +1,23 @@
 <template>
   <div>
-    
     <div v-if="!isAuthenticated">
       <!-- Toggle Between Sign In and Sign Up -->
-      <button @click="toggleForm">Switch to {{ isSignInForm ? 'Sign Up' : 'Sign In' }}</button>
+      <button @click="toggleForm">
+        Switch to {{ isSignInForm ? "Sign Up" : "Sign In" }}
+      </button>
 
       <!-- Sign In Form -->
-      <form v-if="isSignInForm" @submit.prevent="signIn">
-        <input type="email" v-model="signInEmail" placeholder="Email" default="joaorocha619@gmail.com" required>
-        <input type="password" v-model="signInPassword" placeholder="Password" required>
+      <form v-if="isSignInForm" @submit.prevent="handleSignIn">
+        <input type="email" v-model="signInEmail" placeholder="Email" default="joaorocha619@gmail.com" required />
+        <input type="password" v-model="signInPassword" placeholder="Password" required />
         <span v-if="errorMessage" class="error">{{ errorMessage }}</span>
         <button type="submit">Sign In</button>
       </form>
 
       <!-- Sign Up Form -->
-      <form v-else @submit.prevent="signUp">
-        <input type="email" v-model="signUpEmail" placeholder="Email" required>
-        <input type="password" v-model="signUpPassword" placeholder="Password" required>
+      <form v-else @submit.prevent="handleSignUp">
+        <input type="email" v-model="signUpEmail" placeholder="Email" required />
+        <input type="password" v-model="signUpPassword" placeholder="Password" required />
         <button type="submit">Sign Up</button>
       </form>
     </div>
@@ -36,95 +37,90 @@
   <span v-if="errorMessage" class="error">{{ errorMessage }}</span>
 </template>
 
-
 <script>
-import { mapActions } from 'vuex';
+import { mapActions, mapState } from "vuex";
 
 export default {
+  name: "ChatPage",
+  namespaced: true,
   data() {
     return {
-      signInEmail: 'joaorocha619@gmail.com',
-      signInPassword: '',
-      signUpEmail: '',
-      signUpPassword: '',
-      newConversationName: 'New Conversation',
+      signInEmail: "joaorocha619@gmail.com",
+      signInPassword: "",
+      signUpEmail: "",
+      signUpPassword: "",
+      newConversationName: "New Conversation",
       isSubmitting: false,
-      error: '',
-      errorMessage: '',
-      signInError: '',
-      isSignInForm: true, // Initially show the sign-in form
+      error: "",
+      errorMessage: "",
+      signInError: "",
+      isSignInForm: true,
+      messages: [],
     };
   },
   methods: {
-    ...mapActions(['signIn', 'signUp', 'createConversation']),
+    ...mapActions(["signIn", "signUp", "createConversation"]),
+
     async handleSignIn() {
-      this.isSubmitting = true;
       try {
         await this.signIn({
           email: this.signInEmail,
           password: this.signInPassword,
         });
-        this.$router.push('/');
+        this.signInEmail = "";
+        this.signInPassword = "";
       } catch (error) {
         console.error("Could not sign in.", error);
-      } finally {
-        this.isSubmitting = false;
       }
     },
 
     async handleSignUp() {
-      const payload = {
-        email: this.signUpEmail,
-        password: this.signUpPassword,
-      };
-
-      this.isSubmitting = true;
       try {
-        await this.signUp(payload);
-        this.isSubmitting = false;
+        await this.signUp({
+          email: this.signUpEmail,
+          password: this.signUpPassword,
+        });
+        this.signUpEmail = "";
+        this.signUpPassword = "";
+        this.$router.push("/home");
       } catch (error) {
-        this.error = "Failed to sign up";
-        this.isSubmitting = false;
         console.error("Could not sign up.", error);
       }
     },
 
-
-
     async startNewConversation() {
-      // Check authentication status
+      this.error = "";
+      this.isSubmitting = true;
+
+      // Check if user is authenticated
       if (!this.isAuthenticated) {
-        // Handle unauthenticated user
-        this.error = 'You need to sign in or sign up first.';
+        this.error = "You need to sign in or sign up first.";
         return;
       }
-
-      const payload = {
-        name: this.newConversationName,
-        // ... other conversation details
-      };
-
-      this.isSubmitting = true;
+      // Create new conversation
       try {
-        const response = await this.createConversation(payload);
-        this.$router.push({ name: 'ChatDisplay', params: { conversationId: response.data.uuid } });
         this.isSubmitting = false;
+        const response = await this.createConversation({
+          name: this.newConversationName,
+        });
+        console.log(response);
+        this.newConversationName = "";
+        this.$router.push({
+          name: "ChatDisplay",
+          params: { conversationId: response.data.uuid },
+        });
       } catch (error) {
         this.error = "Failed to start new conversation";
-        this.isSubmitting = false;
         console.error("Could not create conversation.", error);
       }
     },
 
     toggleForm() {
-      // Toggle between Sign In and Sign Up forms
       this.isSignInForm = !this.isSignInForm;
-    }
+    },
   },
   computed: {
-    isAuthenticated() {
-      return this.$store.getters['auth/isAuthenticated'];
-    },
+    ...mapState(["isAuthenticated"]),
   },
 };
 </script>

@@ -1,8 +1,9 @@
 <template>
   <div class="chat-container">
 
-    <div v-for="(message, index) in messages" :key="index" class="message-bubble" :class="{'own-message': message.isOwnMessage}">
-      {{ message.text }} 
+    <div v-for="(message, index) in messages" :key="index" class="message-bubble"
+      :class="{ 'own-message': message.isOwnMessage }">
+      {{ message.text }}
     </div>
 
     <input v-model="question" @keyup.enter="send" placeholder="Type a message..." />
@@ -27,10 +28,17 @@
 import { mapActions } from 'vuex';
 
 export default {
+  name: 'ChatDisplay',
   data() {
     return {
       question: '',
     };
+  },
+  props: ['conversationId'],
+  watch: {
+    conversationId(newVal) {
+      this.fetchMessages(newVal);
+    }
   },
   computed: {
     messages() {
@@ -42,20 +50,49 @@ export default {
   },
   methods: {
     ...mapActions(['fetchMessages', 'sendMessage']),
+    async fetchMessages(conversationId) {
+      try {
+        const response = await axios.get(`/api/conversations/${conversationId}`);
+        this.messages = response.data;
+      } catch (error) {
+        console.error("Failed to fetch messages:", error);
+        // Handle the error appropriately
+      }
+    },
+    async setupWebSocket() {
+      const ws = new WebSocket('ws://localhost:3000/ws/conversations/{conversationId}');
+      ws.onopen = () => {
+        console.log('WebSocket is open now.');
+      };
 
+      ws.onerror = (error) => {
+        console.error('WebSocket encountered error: ', error);
+      };
+
+      ws.onclose = (event) => {
+        console.log('WebSocket is closed now.', event);
+      };
+
+      ws.onmessage = (event) => {
+        const newMessage = JSON.parse(event.data);
+        if (newMessage.conversationId === this.conversationId) {
+          this.messages.push(newMessage);
+        }
+      }
+
+
+    },
     async send() {
       if (!this.conversationId) {
         console.error('No conversation selected');
         return;
       }
       await this.sendMessage(this.question);
-      this.question = ''; // Reset the input field after sending the message.
-    },
-  },
-  async mounted() {
-    if (this.conversationId) {
-      await this.fetchMessages(this.conversationId);
+      this.question = '';
     }
+  },
+  mounted() {
+    this.setupWebSocket();
   },
 };
 </script>
@@ -84,4 +121,3 @@ export default {
   color: white;
 }
 </style>
-
