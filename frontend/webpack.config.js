@@ -54,6 +54,11 @@ module.exports = {
       "process.env.BASE_URL": JSON.stringify("/"),
     }),
     new Dotenv(),
+    new webpack.DefinePlugin({
+      __VUE_OPTIONS_API__: true, // Set to false to disable the Options API
+      __VUE_PROD_DEVTOOLS__: false, // Set to true to enable Vue devtools in production
+      __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: true, // Optional: Set to false to disable hydration mismatch details in production
+    }),
   ],
   resolve: {
     alias: {

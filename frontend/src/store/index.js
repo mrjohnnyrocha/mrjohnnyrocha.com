@@ -14,23 +14,25 @@ axios.defaults.headers.post["Content-Type"] = "application/json";
 
 const refreshAuthLogic = failedRequest =>
   axios
-    .post("/token/refresh", { refresh: localStorage.getItem("refreshToken") })
-    .then(tokenRefreshResponse => {
-      localStorage.getItem("token", tokenRefreshResponse.data.access);
-      localStorage.getItem("refreshToken", tokenRefreshResponse.data.refresh);
+    .post("/token/refresh", {
+      refresh: sessionStorage.getItem("refreshToken"),
+    })
+    .then(acessTokenRefreshResponse => {
+      sessionStorage.getItem("acessToken", acessTokenRefreshResponse.access);
+      sessionStorage.getItem("refreshToken", acessTokenRefreshResponse.refresh);
 
       failedRequest.response.config.headers["Authorization"] =
-        "Bearer " + tokenRefreshResponse.data.access;
+        "Bearer " + acessTokenRefreshResponse.access;
       return Promise.resolve();
     });
 createAuthRefreshInterceptor(axios, refreshAuthLogic);
 
 axios.interceptors.request.use(
   async config => {
-    const token = localStorage.getItem("token");
-    if (token) {
+    const acessToken = sessionStorage.getItem("acessToken");
+    if (acessToken) {
       config.headers = {
-        Authorization: "Bearer " + token,
+        Authorization: "Bearer " + acessToken,
         "Content-Type": "application/json",
         Accept: "application/json",
       };
@@ -74,29 +76,29 @@ const store = createStore({
 
   actions: {
     async validateSession({ commit }) {
-      const token = sessionStorage.getItem("token");
-      if (!token) {
+      const acessToken = sessionStorage.getItem("acessToken");
+      if (!acessToken) {
         commit("setAuthenticated", false);
         commit("setUser", null);
-        sessionStorage.removeItem("token");
+        sessionStorage.removeItem("acessToken");
         sessionStorage.removeItem("user");
       } else {
         axios
           .get("/api/session/validate", {
             headers: {
-              Authorization: `Bearer ${token}`,
+              Authorization: `Bearer ${acessToken}`,
             },
           })
           .then(response => {
             commit("setAuthenticated", true);
-            commit("setUser", response.data.user);
-            sessionStorage.setItem("token", response.data.token);
+            commit("setUser", response.user);
+            sessionStorage.setItem("acessToken", response.acess);
           })
           .catch(error => {
             console.error("Session validation failed:", error);
             commit("setAuthenticated", false);
             commit("setUser", null);
-            sessionStorage.removeItem("token");
+            sessionStorage.removeItem("acessToken");
             sessionStorage.removeItem("user");
           });
       }
@@ -106,10 +108,10 @@ const store = createStore({
       try {
         const response = await signInAPI(email, password);
         commit("setAuthenticated", true);
-        commit("setUser", response.data);
-        sessionStorage.setItem("token", response.data.access);
-        sessionStorage.setItem("refreshToken", response.data.refresh);
-        sessionStorage.setItem("user", JSON.stringify(response.data));
+        commit("setUser", response.user);
+        sessionStorage.setItem("acessToken", response.access);
+        sessionStorage.setItem("refreshToken", response.refresh);
+        sessionStorage.setItem("user", JSON.stringify(response.user));
       } catch (error) {
         console.error("Error occurred during sign-in:", error);
       }
@@ -120,7 +122,7 @@ const store = createStore({
         await signOutAPI();
         commit("setAuthenticated", false);
         commit("setUser", null);
-        sessionStorage.removeItem("token");
+        sessionStorage.removeItem("acessToken");
         sessionStorage.removeItem("refreshToken");
         sessionStorage.removeItem("user");
         $router.push("/signin");
@@ -135,8 +137,8 @@ const store = createStore({
         const response = await signUpAPI(email, password);
         commit("setAuthenticated", true);
         commit("setUser", response.data.user);
-        sessionStorage.setItem("token", response.data.token);
-        sessionStorage.setItem("user", response.data.user);
+        sessionStorage.setItem("acessToken", response.acess);
+        sessionStorage.setItem("user", response.user);
         $router.push("/");
         return "Sign-up successful!";
       } catch (error) {
